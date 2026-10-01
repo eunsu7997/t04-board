@@ -1,0 +1,17 @@
+name = "t04-real-info-board"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "t04-board"
+database_id = "ceb3c412-e3e6-4309-bc9d-2e891a8b84a3"
+
+[vars]
+# 서로 다른 KST 날짜 2건을 확보하고 영수증을 남긴 뒤 "true"로 바꿔 다시 배포하세요.
+# 심사 중 누군가 '지금 조회'를 눌러 3번째 날짜 행이 생기거나 값이 바뀌는 것을 막습니다.
+LIVE_LOCK = "false"

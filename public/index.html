@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 진짜 정보판 — 서울 현재 기온</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF1F3; --sheet:#FFFFFF; --ink:#17212B; --muted:#56636F; --rule:#C9D1D8;
+  --station:#24557A; --fresh:#2F7A57; --stale:#A86A12; --fail:#9B3426; --stale-bg:#FBF1DE; --fresh-bg:#E3F1EA;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --paper:#12181E; --sheet:#1A222A; --ink:#E6EBEF; --muted:#9AA7B2; --rule:#33404B;
+    --station:#7FB0D6; --fresh:#6CC197; --stale:#E0A54A; --fail:#E5806F; --stale-bg:#2C2416; --fresh-bg:#16291F; }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.6 "IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;}
+main{max-width:980px;margin:0 auto;padding:28px 18px 64px}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 4px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.25rem;margin:0 0 4px;font-weight:600}
+h3{font-size:1rem;margin:24px 0 8px;font-weight:600}
+p{margin:0 0 12px}
+.lede{color:var(--muted);max-width:62ch}
+section.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:22px;margin-top:28px}
+.panel-head{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.panel-head p{margin:0;color:var(--muted);font-size:.92rem}
+
+.status{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  border-left:6px solid var(--fresh);background:var(--fresh-bg);padding:12px 14px;border-radius:0 4px 4px 0;margin-bottom:18px}
+.status.stale{border-left-color:var(--stale);background:var(--stale-bg)}
+.status.none{border-left-color:var(--rule);background:transparent}
+.status strong{display:block}
+.status small{color:var(--muted)}
+
+.reading{display:grid;grid-template-columns:minmax(200px,auto) 1fr;gap:28px;align-items:start}
+@media (max-width:640px){.reading{grid-template-columns:1fr;gap:12px}}
+.gauge{font-variant-numeric:tabular-nums;line-height:1}
+.gauge .v{font-size:clamp(3.4rem,11vw,5.6rem);font-weight:600;letter-spacing:-.03em}
+.gauge .u{font-size:1.6rem;font-weight:500;margin-left:6px;color:var(--muted)}
+.gauge.is-stale .v{color:var(--stale)}
+.stale-tag{display:inline-block;margin-top:10px;padding:2px 8px;border:1px solid var(--stale);color:var(--stale);border-radius:3px;font-size:.85rem;font-weight:600}
+.delta{margin-top:14px;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.delta small{display:block;color:var(--muted);font-size:.8rem;margin-top:4px;max-width:36ch}
+
+dl.prov{display:grid;grid-template-columns:7.5em 1fr;gap:6px 14px;margin:0;font-size:.95rem}
+dl.prov dt{color:var(--muted)}
+dl.prov dd{margin:0;word-break:break-word;font-variant-numeric:tabular-nums}
+dl.prov dd .iso{display:block;color:var(--muted);font-size:.8rem}
+
+.scroll{overflow-x:auto;margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{white-space:nowrap}
+td{overflow-wrap:anywhere;min-width:4.5em}
+th{font-weight:600;color:var(--muted)}
+td.ok{color:var(--fresh);font-weight:600}
+td.bad{color:var(--fail);font-weight:600}
+
+button{font:inherit;font-weight:600;border-radius:4px;padding:9px 14px;cursor:pointer;border:1px solid var(--station);background:var(--station);color:#fff}
+button.ghost{background:transparent;color:var(--station)}
+button.small{padding:4px 9px;font-size:.82rem}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid var(--station);outline-offset:2px}
+a{color:var(--station)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fixtures{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:8px}
+.fixtures button{text-align:left;font-weight:500}
+select{font:inherit;padding:8px;border:1px solid var(--rule);border-radius:4px;background:var(--sheet);color:var(--ink)}
+.note{font-size:.88rem;color:var(--muted)}
+.howto ol{margin:0;padding-left:1.3em}
+.howto li{margin-bottom:6px;max-width:72ch}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:4px;font-size:.9rem;display:none}
+@media (prefers-reduced-motion:no-preference){.flash{animation:flash .6s ease-out}@keyframes flash{from{background:var(--stale-bg)}to{background:transparent}}}
+</style>
+</head>
+<body>
+<main>
+  <h1>오늘의 진짜 정보판</h1>
+  <p class="lede">서울의 현재 기온을 공개 기상 API에서 받아 하루에 한 줄씩 기록하고, 어제와 비교합니다. 조회가 실패해도 마지막으로 받은 값을 지우지 않고, 언제 받은 값인지와 왜 새 값이 없는지를 함께 보여 줍니다.</p>
+
+  <section class="panel" id="live" aria-labelledby="live-h">
+    <div class="panel-head">
+      <h2 id="live-h">실제 조회</h2>
+      <p>원천: Open-Meteo 공개 API (키 없음, 개인정보 없음)</p>
+    </div>
+    <div data-board></div>
+    <div class="row" style="margin-top:18px">
+      <button id="live-fetch">지금 조회</button>
+      <span class="note" id="live-lock-note" hidden>서로 다른 날짜 2건을 확보해 실제 조회를 잠갔습니다. 아래는 저장된 기록입니다.</span>
+    </div>
+  </section>
+
+  <section class="panel" id="replay" aria-labelledby="replay-h">
+    <div class="panel-head">
+      <h2 id="replay-h">합성 재생으로 실패 확인하기</h2>
+      <p>ALEPH 공개 fixture 9종. 날짜는 합성 시계이며 실제 기록과 섞이지 않습니다.</p>
+    </div>
+    <div class="row">
+      <button id="rp-reset" class="ghost">합성 상태 초기화</button>
+      <button id="rp-seq-success">정상 순서 재생</button>
+      <select id="rp-fail-pick" aria-label="실패 종류">
+        <option value="T04-TIMEOUT">느린 응답 (timeout)</option>
+        <option value="T04-AUTH-401">원천 401 거절 (auth)</option>
+        <option value="T04-RATE-429">호출 제한 (rate_limit)</option>
+        <option value="T04-OFFLINE">오프라인 (offline)</option>
+        <option value="T04-SCHEMA-BREAK">응답 형식 변경 (schema_error)</option>
+      </select>
+      <button id="rp-seq-fail">실패 순서 재생</button>
+      <button id="rp-seq-recover">회복 직전까지 재생</button>
+    </div>
+    <p class="note" style="margin-top:8px">'회복 직전까지 재생'은 초기화 → D1-A → D1-B → TIMEOUT까지 진행합니다. 그 뒤 상태 표시줄의 '다시 시도'를 누르면 T04-RECOVER-D2가 재생됩니다.</p>
+    <div class="fixtures" id="rp-fixtures" aria-label="fixture 한 개씩 재생"></div>
+    <h3>재생 결과와 기대값 대조</h3>
+    <div class="scroll"><table id="rp-log"><thead><tr>
+      <th>순서</th><th>fixture</th><th>상태</th><th>행 수</th><th>저장값</th><th>변화</th><th>기대와 일치</th>
+    </tr></thead><tbody></tbody></table></div>
+    <h3>합성 정보판</h3>
+    <div data-board></div>
+  </section>
+
+  <section class="panel howto" aria-labelledby="howto-h">
+    <h2 id="howto-h">짧은 확인 방법</h2>
+    <ol>
+      <li><strong>어디로 가나요:</strong> 이 페이지 주소를 새 시크릿 창에서 엽니다. 로그인이나 가입은 없습니다.</li>
+      <li><strong>3단계 이내 무엇을 하나요:</strong> '합성 상태 초기화' → '실패 순서 재생'(실패 종류 선택) → '회복 직전까지 재생' 후 '다시 시도'.</li>
+      <li><strong>무엇이 보이면 통과인가요:</strong> 실패마다 다른 이유와 함께 '오래된 값' 표시가 붙고 105와 행 1건이 남습니다. 다시 시도 후 '최신', 행 2건, 120, 변화 +15 pt가 보이고 대조표가 모두 일치입니다. 실제 조회 칸에는 서로 다른 KST 날짜 2건과 어제 대비 변화가 보입니다.</li>
+      <li><strong>안 될 때 무엇이 보이나요:</strong> 대조표의 '기대와 일치' 칸에 불일치 항목이 빨간색으로 표시되고, 상태 표시줄에 실패 이유와 다시 시도 버튼이 나옵니다.</li>
+    </ol>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const ERR_KO = {
+  timeout: '원천 응답이 제한시간 안에 오지 않았습니다',
+  auth: '원천이 요청을 거절했습니다 (401/403)',
+  rate_limit: '원천의 호출 제한에 걸렸습니다 (429)',
+  offline: '네트워크에 연결할 수 없습니다',
+  schema_error: '원천 응답 형식이 예상과 달라 값을 읽지 못했습니다'
+};
+let CONFIG = { delta_rule_ko: '' };
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const kst = (iso) => {
+  if (!iso) return '없음';
+  const d = new Date(iso);
+  const f = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(d);
+  return f + ' KST';
+};
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',2200); }
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json' } });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok && r.status !== 423) throw new Error(body.message || body.error || ('HTTP ' + r.status));
+  return { status: r.status, body };
+}
+function deltaText(c) {
+  if (!c || c.state === 'insufficient') return '어제 대비: 비교할 이전 날짜 기록이 아직 없습니다';
+  if (c.state === 'unit_mismatch') return '어제 대비: 단위가 달라 계산하지 않았습니다';
+  const word = { increase: '상승', decrease: '하락', unchanged: '변화 없음' }[c.direction];
+  const sign = c.signed > 0 ? '+' : c.signed < 0 ? '−' : '±';
+  return `어제(${c.previous}) 대비 ${sign}${c.magnitude} ${c.unit} ${word}`;
+}
+function rawFields(ns, row) {
+  if (!row || !row.raw_text) return null;
+  try {
+    const j = JSON.parse(row.raw_text);
+    if (ns === 'live') return { value: j.current?.temperature_2m, unit: j.current_units?.temperature_2m, time: j.current?.time ? j.current.time + ' (GMT)' : null, timeIso: j.current?.time ? j.current.time + ':00Z' : null, url: row.source_url };
+    return { value: j.normalized_value, unit: j.unit, time: j.source_time, timeIso: j.source_time, url: j.source_url };
+  } catch { return null; }
+}
+
+function renderBoard(el, ns, s, onRetry) {
+  const cur = s.current_reading;
+  const st = s.status;
+  const row = cur ? s.rows.find((r) => r.record_date === cur.record_date) : null;
+  let statusHtml;
+  if (!st) statusHtml = `<div class="status none"><div><strong>아직 기록이 없습니다</strong><small>${ns === 'live' ? "'지금 조회'로 첫 값을 받으세요." : "위 버튼으로 fixture를 재생하세요."}</small></div></div>`;
+  else if (st.freshness === 'fresh') statusHtml = `<div class="status"><div><strong>최신 값</strong><small>상태 fresh, 오류 none, 마지막 조회 ${esc(kst(s.last_run?.virtual_now || cur?.fetched_at))}</small></div></div>`;
+  else statusHtml = `<div class="status stale"><div><strong>오래된 값을 보여 주는 중입니다</strong><small>${esc(ERR_KO[st.error_code])}. 상태 stale, 오류 ${esc(st.error_code)}${s.last_run?.retry_after_seconds ? `, ${s.last_run.retry_after_seconds}초 뒤 재시도 권장` : ''}.</small></div><button data-retry>다시 시도</button></div>`;
+
+  const displayValue = cur ? String(cur.normalized_value) : '—';
+  const raw = rawFields(ns, row);
+  el.innerHTML = `
+    ${statusHtml}
+    <div class="reading">
+      <div>
+        <div class="gauge ${st?.freshness === 'stale' ? 'is-stale' : ''}"><span class="v" data-shown-value>${esc(displayValue)}</span><span class="u" data-shown-unit>${esc(cur?.unit || '')}</span></div>
+        ${st?.freshness === 'stale' ? '<span class="stale-tag">오래된 값</span>' : ''}
+        <p class="delta">${esc(deltaText(s.comparison))}<small>${esc(CONFIG.delta_rule_ko)}</small></p>
+      </div>
+      <dl class="prov">
+        <dt>출처</dt><dd>${cur ? `${esc(cur.source_name)}<span class="iso"><a href="${esc(cur.source_url)}" rel="noopener" target="_blank">${esc(cur.source_url)}</a></span>` : '없음'}</dd>
+        <dt>출처 시각</dt><dd>${cur ? `${esc(kst(cur.source_time))}<span class="iso">${esc(cur.source_time ?? '원천이 시각을 주지 않음')}</span>` : '없음'}</dd>
+        <dt>조회 시각</dt><dd>${cur ? `${esc(kst(cur.fetched_at))}<span class="iso">${esc(cur.fetched_at)}</span>` : '없음'}</dd>
+        <dt>기준 시간대</dt><dd>Asia/Seoul (KST, UTC+9)</dd>
+        <dt>기록 날짜</dt><dd>${esc(cur?.record_date || '없음')} <span class="iso">일별 기록 ${s.row_count}건</span></dd>
+      </dl>
+    </div>
+    <h3>원자료 · 저장값 · 화면값 대조 (현재 값)</h3>
+    <div class="scroll"><table><thead><tr><th>항목</th><th>원자료</th><th>저장값</th><th>화면값</th><th>일치</th></tr></thead><tbody>
+      ${cur && row ? [
+        ['값', raw?.value, row.normalized_value, displayValue],
+        ['단위', raw?.unit, row.unit, cur.unit],
+        ['출처 시각', raw?.time, row.source_time, cur.source_time],
+        ['출처 URL', raw?.url, row.source_url, cur.source_url]
+      ].map(([k, a, b, c]) => {
+        const t = (x) => (x == null ? 'null' : new Date(x).getTime());
+        const same = k === '출처 시각' ? (t(raw?.timeIso) === t(b) && t(b) === t(c))
+          : (String(a) === String(b) && String(b) === String(c));
+        return `<tr><td>${k}</td><td>${esc(a ?? '없음')}</td><td>${esc(b ?? '없음')}</td><td>${esc(c ?? '없음')}</td><td class="${same ? 'ok' : 'bad'}">${same ? '일치' : '불일치'}</td></tr>`;
+      }).join('') : '<tr><td colspan="5">표시할 정상값이 없습니다</td></tr>'}
+    </tbody></table></div>
+    <h3>일별 기록 (Asia/Seoul 날짜당 1건)</h3>
+    <div class="scroll"><table><thead><tr><th>날짜</th><th>값</th><th>단위</th><th>출처 시각</th><th>처음 조회</th><th>마지막 조회</th><th>기록 ID</th>${ns === 'live' ? '<th>영수증 payload</th>' : ''}</tr></thead><tbody>
+      ${s.rows.length ? s.rows.map((r) => `<tr><td>${esc(r.record_date)}</td><td>${esc(r.normalized_value)}</td><td>${esc(r.unit)}</td><td>${esc(kst(r.source_time))}</td><td>${esc(kst(r.first_fetched_at))}</td><td>${esc(kst(r.last_fetched_at))}</td><td>${esc(r.record_id)}</td>${ns === 'live' ? `<td><button class="small ghost" data-copy="${esc(r.record_date)}">복사</button></td>` : ''}</tr>`).join('') : `<tr><td colspan="${ns === 'live' ? 8 : 7}">기록 없음</td></tr>`}
+    </tbody></table></div>`;
+  const rb = el.querySelector('[data-retry]');
+  if (rb) rb.addEventListener('click', onRetry);
+  el.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    const { body } = await api('/api/live/receipt-payload?date=' + encodeURIComponent(b.dataset.copy));
+    try { await navigator.clipboard.writeText(JSON.stringify(body, null, 2)); toast('영수증 payload를 복사했습니다'); }
+    catch { prompt('아래 내용을 복사하세요', JSON.stringify(body)); }
+  }));
+}
+
+// ---- live ----
+const liveBoard = $('#live [data-board]');
+async function loadLive() { const { body } = await api('/api/state?ns=live'); renderBoard(liveBoard, 'live', body, doLiveFetch); }
+async function doLiveFetch() {
+  const btn = $('#live-fetch'); btn.disabled = true;
+  try {
+    const { status, body } = await api('/api/live/fetch', { method: 'POST' });
+    if (status === 423) toast(body.message_ko); else toast(body.outcome === 'success' ? '새 값을 저장했습니다' : '조회 실패: ' + ERR_KO[body.error_code]);
+    await loadLive();
+  } catch (e) { toast('서버 오류: ' + e.message); }
+  finally { btn.disabled = CONFIG.live_lock; }
+}
+$('#live-fetch').addEventListener('click', doLiveFetch);
+
+// ---- replay ----
+const replayBoard = $('#replay [data-board]');
+let step = 0;
+function logRow(fid, exp, s) {
+  step += 1;
+  const latest = s.rows[s.rows.length - 1];
+  const checks = [
+    s.status?.freshness === exp.freshness, s.status?.error_code === exp.error_code,
+    s.row_count === exp.row_count, s.current_reading?.normalized_value === exp.stored_value,
+    latest?.normalized_value === exp.stored_value, s.delta === exp.delta
+  ];
+  const ok = checks.every(Boolean);
+  const tr = document.createElement('tr');
+  tr.className = 'flash';
+  tr.innerHTML = `<td>${step}</td><td>${esc(fid)}</td><td>${esc(s.status?.freshness)} / ${esc(s.status?.error_code)}</td><td>${s.row_count}</td><td>${esc(s.current_reading?.normalized_value)}</td><td>${esc(s.delta ?? '없음')}</td><td class="${ok ? 'ok' : 'bad'}">${ok ? '일치' : `불일치 (기대 ${exp.freshness}/${exp.error_code}, ${exp.row_count}행, ${exp.stored_value}, ${exp.delta ?? '없음'})`}</td>`;
+  $('#rp-log tbody').appendChild(tr);
+}
+async function runOne(fid) {
+  const { body } = await api('/api/replay/run', { method: 'POST', body: JSON.stringify({ fixture_id: fid }) });
+  logRow(fid, body.expected, body.state);
+  renderBoard(replayBoard, 'replay', body.state, () => runOne('T04-RECOVER-D2'));
+}
+async function reset() {
+  const { body } = await api('/api/replay/reset', { method: 'POST' });
+  step = 0; $('#rp-log tbody').innerHTML = '';
+  renderBoard(replayBoard, 'replay', body.state, () => runOne('T04-RECOVER-D2'));
+}
+async function seq(ids) { await reset(); for (const id of ids) await runOne(id); }
+const guard = (fn) => async () => { document.querySelectorAll('#replay button').forEach((b) => b.disabled = true); try { await fn(); } catch (e) { toast('오류: ' + e.message); } finally { document.querySelectorAll('#replay button').forEach((b) => b.disabled = false); } };
+$('#rp-reset').addEventListener('click', guard(reset));
+$('#rp-seq-success').addEventListener('click', guard(() => seq(['T04-NORMAL-D1-A', 'T04-NORMAL-D1-B', 'T04-NORMAL-D2'])));
+$('#rp-seq-fail').addEventListener('click', guard(() => seq(['T04-NORMAL-D1-A', 'T04-NORMAL-D1-B', $('#rp-fail-pick').value])));
+$('#rp-seq-recover').addEventListener('click', guard(() => seq(['T04-NORMAL-D1-A', 'T04-NORMAL-D1-B', 'T04-TIMEOUT'])));
+
+(async function init() {
+  try {
+    CONFIG = (await api('/api/config')).body;
+    if (CONFIG.live_lock) { $('#live-fetch').disabled = true; $('#live-lock-note').hidden = false; }
+    const fx = (await api('/api/fixtures')).body;
+    $('#rp-fixtures').innerHTML = fx.map((f) => `<button class="ghost" data-fx="${esc(f.fixture_id)}" title="${esc(f.description_ko)}">${esc(f.fixture_id)}</button>`).join('');
+    $('#rp-fixtures').querySelectorAll('[data-fx]').forEach((b) => b.addEventListener('click', guard(() => runOne(b.dataset.fx))));
+    await loadLive();
+    const { body } = await api('/api/state?ns=replay');
+    renderBoard(replayBoard, 'replay', body, () => runOne('T04-RECOVER-D2'));
+  } catch (e) { toast('불러오기 실패: ' + e.message); }
+})();
+</script>
+</body>
+</html>
