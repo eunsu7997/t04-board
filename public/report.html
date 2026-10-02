@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T05 AI 비교 보고서</title>
+<style>
+:root{--paper:#EEF1F3;--sheet:#fff;--ink:#17212B;--muted:#56636F;--rule:#C9D1D8;--accent:#24557A;--todo:#A86A12;--todo-bg:#FBF1DE}
+@media (prefers-color-scheme:dark){:root{--paper:#12181E;--sheet:#1A222A;--ink:#E6EBEF;--muted:#9AA7B2;--rule:#33404B;--accent:#7FB0D6;--todo:#E0A54A;--todo-bg:#2C2416}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 16px 64px}
+h1{font-size:1.6rem;margin:0 0 4px}
+h2{font-size:1.15rem;margin:0 0 8px}
+.lede{color:var(--muted);margin:0 0 8px}
+section{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:20px;margin-top:20px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:480px}
+th,td{border-bottom:1px solid var(--rule);padding:8px 10px;text-align:left}
+th{color:var(--muted);font-weight:600;font-size:.9rem}
+td.num{font-variant-numeric:tabular-nums}
+.todo{color:var(--todo);background:var(--todo-bg);padding:1px 6px;border-radius:3px;font-size:.9rem}
+ol,ul{margin:0;padding-left:1.3em}
+li{margin:4px 0}
+.note{color:var(--muted);font-size:.9rem;margin:10px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>T05 대화가 끊겨도 이어지는 프로젝트 — 비교 보고서</h1>
+<p class="lede">두 AI 모델 이름은 판정 전까지 가리고 <strong>AI A / AI B</strong>로만 표시합니다. 대화 전문은 싣지 않고 고정 검사, 집계 결과, 인수인계 문서, 본인 판단만 남깁니다.</p>
+
+<section>
+<h2>1. 가린 비교표</h2>
+<div class="scroll">
+<table id="cmp">
+<thead><tr><th>항목</th><th>AI A</th><th>AI B</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<p class="note">오류 수는 고정 검사 10개 중 하나 이상이 FAIL한 실행 회차 수입니다. 재작업량(소스 추가·삭제 줄 수)은 제출 후 채점기가 고정 소스 버전 쌍으로 계산하므로 직접 적지 않습니다. 시간·요청 수는 시작 전에 정한 공통 상한 이하여야 합니다.</p>
+</section>
+
+<section>
+<h2>2. 고정 소스 버전 쌍</h2>
+<div class="scroll">
+<table id="vers">
+<thead><tr><th>구간</th><th>시작 버전(commit)</th><th>종료 버전(commit)</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>3. 짧은 확인 방법 (4줄)</h2>
+<ol id="how"></ol>
+</section>
+
+<section>
+<h2>4. AI와 나의 판단 (3줄)</h2>
+<ul id="judge"></ul>
+</section>
+
+<section>
+<h2>5. 다음 작업의 도구 선택 기준 (한 문장)</h2>
+<p id="rule"></p>
+</section>
+</main>
+
+<script>
+// 실제 측정 후 이 데이터만 채우면 화면이 완성됩니다. null은 아직 측정하지 않은 값입니다.
+// 이름(모델·서비스)은 판정 구간에서 가려져 있으므로 여기에 적지 않습니다.
+const REPORT = {
+  rows: [
+    { label: "실제 작업시간(분)",          a: null, b: null },
+    { label: "실제 요청·호출 수",          a: null, b: null },
+    { label: "오류 수(실패 회차)",         a: null, b: null },
+    { label: "검사 통과 수 (/10)",         a: null, b: null }
+  ],
+  versions: [
+    { label: "AI A", start: null, end: null },
+    { label: "AI B", start: null, end: null }
+  ],
+  how: [
+    "어디로 가나요: (공개 결과물 URL)",
+    "무엇을 하나요(3단계 이내): 1) … 2) … 3) …",
+    "무엇이 보이면 통과인가요: …",
+    "안 될 때 무엇이 보이나요: …"
+  ],
+  judge: [
+    "AI에게 맡긴 일: …",
+    "내가 직접 판단한 일: …",
+    "AI 제안을 따르지 않은 일: … (없으면 그 이유)"
+  ],
+  rule: null
+};
+
+const T = s => document.createTextNode(s);
+function cell(v, cls){
+  const td = document.createElement("td");
+  if (cls) td.className = cls;
+  if (v === null || v === undefined || v === "") {
+    const s = document.createElement("span"); s.className = "todo"; s.textContent = "미측정"; td.append(s);
+  } else td.append(T(String(v)));
+  return td;
+}
+function fill(sel, rows){ const tb = document.querySelector(sel + " tbody"); rows.forEach(r => { const tr = document.createElement("tr"); r.forEach(c => tr.append(c)); tb.append(tr); }); }
+fill("#cmp", REPORT.rows.map(r => { const th = document.createElement("td"); th.append(T(r.label)); return [th, cell(r.a, "num"), cell(r.b, "num")]; }));
+fill("#vers", REPORT.versions.map(r => { const th = document.createElement("td"); th.append(T(r.label)); return [th, cell(r.start, "num"), cell(r.end, "num")]; }));
+REPORT.how.forEach(t => { const li = document.createElement("li"); li.append(T(t)); document.getElementById("how").append(li); });
+REPORT.judge.forEach(t => { const li = document.createElement("li"); li.append(T(t)); document.getElementById("judge").append(li); });
+document.getElementById("rule").append(REPORT.rule ? T(REPORT.rule) : (() => { const s = document.createElement("span"); s.className = "todo"; s.textContent = "아직 작성 전"; return s; })());
+</script>
+</body>
+</html>
