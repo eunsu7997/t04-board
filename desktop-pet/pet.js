@@ -1,6 +1,6 @@
 const stage = document.getElementById('stage');
 const img = document.getElementById('pet');
-const SPR = ['idle', 'walk', 'run', 'pose', 'excited', 'sleep', 'curious', 'lie'];
+const SPR = ['idle', 'walk', 'run', 'pose', 'excited', 'sleep', 'curious', 'lie', 'blink'];
 SPR.forEach(n => { new Image().src = `sprites/${n}.png`; }); // 미리 로드해서 전환 시 깜빡임 방지
 
 let state = 'idle', dir = 1, until = 0, dragging = false, b = null;
@@ -26,11 +26,24 @@ function next() {
   else set('sleep', rand(6000, 10000));
 }
 
+// 휴식 중 가끔 눈 깜빡임 (가끔은 두 번 연속)
+let nextBlink = performance.now() + 2000;
+function blink(now) {
+  if (state !== 'idle' || dragging || now < nextBlink) return;
+  nextBlink = now + rand(2500, 5000);
+  const twice = Math.random() < 0.25;
+  const close = () => { if (state === 'idle') img.src = 'sprites/blink.png'; };
+  const open = () => { if (state === 'idle') img.src = 'sprites/idle.png'; };
+  close(); setTimeout(open, 130);
+  if (twice) { setTimeout(close, 260); setTimeout(open, 390); }
+}
+
 let last = performance.now();
 async function tick(now) {
   const dt = Math.min(now - last, 50); last = now;
   if (!dragging) {
     if (now > until) next();
+    blink(now);
     const speed = state === 'walk' ? 0.05 : state === 'run' ? 0.17 : 0;
     if (speed) {
       b = await window.pet.bounds();
